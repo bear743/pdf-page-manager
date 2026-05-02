@@ -167,6 +167,9 @@ export default function UploadArea() {
                   }`}
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
+                    {index + 1}
+                  </div>
                   {dragMode === "reorder" && overIndex === index && (
                     <div className="absolute -left-2 top-2 bottom-2 w-1 bg-blue-400 rounded pointer-events-none" />
                   )}

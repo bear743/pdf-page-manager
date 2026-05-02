@@ -1,15 +1,15 @@
 import { create } from "zustand";
 import { PDFDocument } from "pdf-lib";
-import type { PDFFile, Mode } from "../types/pdf";
+import type { PDFFile } from "../types/pdf";
 import { generateThumbnails, mergeTwoPDFs } from "../utils/pdf";
 
 interface PdfStore {
   files: PDFFile[];
-  mode: Mode;
   customRange: string;
+  fixedSplitSize: number;
 
-  setMode: (mode: Mode) => void;
   setCustomRange: (value: string) => void;
+  setFixedSplitSize: (value: number) => void;
 
   addFiles: (fileList: FileList | null) => Promise<void>;
   reorderFiles: (files: PDFFile[]) => void;
@@ -19,7 +19,10 @@ interface PdfStore {
     pageIndex: number,
     side: "left" | "right",
   ) => Promise<void>;
+  mergeAllFiles: () => Promise<void>;
   splitByCustomRange: () => Promise<void>;
+  splitByFixedPages: () => Promise<void>;
+  downloadAllFiles: () => void;
 }
 
 function computeCustomRange(files: PDFFile[]): string {
@@ -135,11 +138,11 @@ async function splitByRanges(
 
 export const usePdfStore = create<PdfStore>((set, get) => ({
   files: [],
-  mode: "merge",
   customRange: "",
+  fixedSplitSize: 1,
 
-  setMode: (mode) => set({ mode }),
   setCustomRange: (customRange) => set({ customRange }),
+  setFixedSplitSize: (fixedSplitSize) => set({ fixedSplitSize }),
 
   addFiles: async (fileList) => {
     if (!fileList) return;
@@ -240,6 +243,59 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
     }
   },
 
+  mergeAllFiles: async () => {
+    const { files } = get();
+    const loadedFiles = files.filter((f) => f.pageCount > 0 && !f.isLoading);
+    if (loadedFiles.length === 0) return;
+    if (loadedFiles.length === 1) return;
+
+    set((s) => ({
+      files: s.files.map((f) => ({ ...f, isLoading: true })),
+    }));
+
+    try {
+      const mergedPdf = await PDFDocument.create();
+      let outputPageNames: string[] = [];
+      let outputSourceName = loadedFiles[0].file.name;
+
+      for (const pdfFile of loadedFiles) {
+        const pdf = await PDFDocument.load(await pdfFile.file.arrayBuffer());
+        const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+        for (const page of pages) {
+          mergedPdf.addPage(page);
+        }
+        outputPageNames.push(...pdfFile.pageNames);
+      }
+
+      const bytes = await mergedPdf.save();
+      const mergedFile = new File(
+        [bytes as unknown as BlobPart],
+        outputSourceName,
+        { type: "application/pdf" },
+      );
+      const { pageCount, thumbnails } = await generateThumbnails(mergedFile);
+
+      set({
+        files: [
+          {
+            id: Math.random().toString(36).slice(2),
+            file: mergedFile,
+            pageCount,
+            thumbnails,
+            pageNames: outputPageNames,
+            isLoading: false,
+          },
+        ],
+      });
+    } catch (err) {
+      console.error("Merge all failed:", err);
+      alert("合并全部失败，请检查文件是否有效");
+      set((s) => ({
+        files: s.files.map((f) => ({ ...f, isLoading: false })),
+      }));
+    }
+  },
+
   splitByCustomRange: async () => {
     const { files, customRange } = get();
 
@@ -303,6 +359,111 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       }));
     }
   },
+
+  downloadAllFiles: () => {
+    const { files } = get();
+    const loadedFiles = files.filter((f) => f.pageCount > 0 && !f.isLoading && !f.isMerging);
+    if (loadedFiles.length === 0) {
+      alert("没有可下载的文件");
+      return;
+    }
+
+    for (let i = 0; i < loadedFiles.length; i++) {
+      const pdfFile = loadedFiles[i];
+      const url = URL.createObjectURL(pdfFile.file);
+      const a = document.createElement("a");
+      a.href = url;
+      const ext = pdfFile.file.name.split(".").pop() || "pdf";
+      a.download = `${i + 1}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  },
+
+  splitByFixedPages: async () => {
+    const { files, fixedSplitSize } = get();
+    const loadedFiles = files.filter((f) => f.pageCount > 0 && !f.isLoading);
+    if (loadedFiles.length === 0) return;
+
+    if (fixedSplitSize < 1) {
+      alert("固定页数必须大于0");
+      return;
+    }
+
+    set((s) => ({
+      files: s.files.map((f) => ({ ...f, isLoading: true })),
+    }));
+
+    try {
+      const results: { file: File; pageNames: string[] }[] = [];
+      let outputDoc = await PDFDocument.create();
+      let outputPageNames: string[] = [];
+      let pageCounter = 0;
+
+      for (const pdfFile of loadedFiles) {
+        const pdf = await PDFDocument.load(await pdfFile.file.arrayBuffer());
+        const totalPages = pdf.getPageCount();
+
+        for (let i = 0; i < totalPages; i++) {
+          const [page] = await outputDoc.copyPages(pdf, [i]);
+          outputDoc.addPage(page);
+          outputPageNames.push(pdfFile.pageNames[i]);
+          pageCounter++;
+
+          if (pageCounter === fixedSplitSize) {
+            const bytes = await outputDoc.save();
+            results.push({
+              file: new File(
+                [bytes as unknown as BlobPart],
+                pdfFile.file.name,
+                { type: "application/pdf" },
+              ),
+              pageNames: outputPageNames,
+            });
+            outputDoc = await PDFDocument.create();
+            outputPageNames = [];
+            pageCounter = 0;
+          }
+        }
+      }
+
+      // Don't forget the last chunk if it has remaining pages
+      if (pageCounter > 0) {
+        const bytes = await outputDoc.save();
+        results.push({
+          file: new File(
+            [bytes as unknown as BlobPart],
+            loadedFiles[0].file.name,
+            { type: "application/pdf" },
+          ),
+          pageNames: outputPageNames,
+        });
+      }
+
+      const newFiles: PDFFile[] = [];
+      for (const { file: newFile, pageNames } of results) {
+        const { pageCount, thumbnails } = await generateThumbnails(newFile);
+        newFiles.push({
+          id: Math.random().toString(36).slice(2),
+          file: newFile,
+          pageCount,
+          thumbnails,
+          pageNames,
+          isLoading: false,
+        });
+      }
+
+      set({ files: newFiles });
+    } catch (err) {
+      console.error("Fixed page split failed:", err);
+      alert("固定页数拆分失败，请检查文件是否有效");
+      set((s) => ({
+        files: s.files.map((f) => ({ ...f, isLoading: false })),
+      }));
+    }
+  },
 }));
 
 // 只要 files 变化且全部加载完毕，就自动更新 customRange 并切换到 custom-split 模式
@@ -315,9 +476,6 @@ usePdfStore.subscribe((state, prevState) => {
     loadedFiles.length === state.files.length
   ) {
     const newRange = computeCustomRange(state.files);
-    usePdfStore.setState({
-      customRange: newRange,
-      mode: "custom-split",
-    });
+    usePdfStore.setState({ customRange: newRange });
   }
 });
