@@ -21,6 +21,7 @@ export default function UploadArea() {
 
   const files = usePdfStore((s) => s.files);
   const addFiles = usePdfStore((s) => s.addFiles);
+  const removeFile = usePdfStore((s) => s.removeFile);
   const reorderFiles = usePdfStore((s) => s.reorderFiles);
   const mergeFiles = usePdfStore((s) => s.mergeFiles);
 
@@ -34,6 +35,9 @@ export default function UploadArea() {
   }
 
   function handlePointerDown(e: React.PointerEvent, id: string) {
+    const deleteBtn = (e.target as HTMLElement).closest("[data-delete-btn]");
+    if (deleteBtn) return;
+
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
 
@@ -167,6 +171,19 @@ export default function UploadArea() {
                   }`}
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <button
+                    data-delete-btn
+                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-md cursor-pointer z-10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFile(file.id);
+                    }}
+                    title="移除"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-xs font-medium rounded-full w-6 h-6 flex items-center justify-center">
                     {index + 1}
                   </div>

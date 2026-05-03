@@ -12,6 +12,7 @@ interface PdfStore {
   setFixedSplitSize: (value: number) => void;
 
   addFiles: (fileList: FileList | null) => Promise<void>;
+  removeFile: (id: string) => void;
   reorderFiles: (files: PDFFile[]) => void;
   mergeFiles: (
     sourceId: string,
@@ -191,6 +192,8 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
   },
 
   reorderFiles: (files) => set({ files }),
+
+  removeFile: (id) => set((state) => ({ files: state.files.filter((f) => f.id !== id) })),
 
   mergeFiles: async (sourceId, targetId, pageIndex, side) => {
     const { files } = get();
