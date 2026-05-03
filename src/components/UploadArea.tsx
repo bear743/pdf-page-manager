@@ -11,6 +11,7 @@ export default function UploadArea() {
   const [dragMode, setDragMode] = useState<DragMode>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const [mergeTarget, setMergeTarget] = useState<MergeTarget | null>(null);
+  const [expandedFileIds, setExpandedFileIds] = useState<Set<string>>(new Set());
 
   const dragState = useRef<{
     id: string | null;
@@ -37,6 +38,9 @@ export default function UploadArea() {
   function handlePointerDown(e: React.PointerEvent, id: string) {
     const deleteBtn = (e.target as HTMLElement).closest("[data-delete-btn]");
     if (deleteBtn) return;
+
+    const expandBtn = (e.target as HTMLElement).closest("[data-expand-btn]");
+    if (expandBtn) return;
 
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
@@ -198,47 +202,96 @@ export default function UploadArea() {
                   {file.isLoading || file.isMerging ? (
                     <LoadingPlaceholder file={file} isMerging={file.isMerging} />
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <ThumbnailView
-                        src={file.thumbnails[0]}
-                        pageNum={1}
-                        fileId={file.id}
-                        pageIndex={0}
-                        pageName={file.pageNames[0]}
-                        dragMode={dragMode}
-                        draggingId={draggingId}
-                        mergeTarget={mergeTarget}
-                      />
-
-                      {file.pageCount === 2 && (
+                    <div className="flex flex-col items-center">
+                      <div className={`flex items-center gap-2 flex-wrap max-w-80 justify-center ${expandedFileIds.has(file.id) ? "max-h-80 overflow-y-auto" : ""}`}>
                         <ThumbnailView
-                          src={file.thumbnails[1]}
-                          pageNum={2}
+                          src={file.thumbnails[0]}
+                          pageNum={1}
                           fileId={file.id}
-                          pageIndex={1}
-                          pageName={file.pageNames[1]}
+                          pageIndex={0}
+                          pageName={file.pageNames[0]}
                           dragMode={dragMode}
                           draggingId={draggingId}
                           mergeTarget={mergeTarget}
                         />
-                      )}
 
-                      {file.pageCount > 2 && (
-                        <>
-                          <span className="text-gray-400 text-lg px-1">
-                            ...{" "}
-                          </span>
+                        {file.pageCount === 2 && (
                           <ThumbnailView
                             src={file.thumbnails[1]}
-                            pageNum={file.pageCount}
+                            pageNum={2}
                             fileId={file.id}
                             pageIndex={1}
-                            pageName={file.pageNames[file.pageCount - 1]}
+                            pageName={file.pageNames[1]}
                             dragMode={dragMode}
                             draggingId={draggingId}
                             mergeTarget={mergeTarget}
                           />
-                        </>
+                        )}
+
+                        {file.pageCount > 2 && (
+                          <>
+                            {expandedFileIds.has(file.id) ? (
+                              <>
+                                {Array.from({ length: file.pageCount - 2 }, (_, i) => i + 1).map((pageIndex) => (
+                                  <div key={pageIndex} className="flex flex-col items-center gap-1">
+                                    <div className="w-28 h-36 bg-white rounded-lg shadow-sm border flex items-center justify-center p-2">
+                                    </div>
+                                    <span className="text-xs text-gray-600 truncate max-w-28" title={file.pageNames[pageIndex]}>
+                                      {file.pageNames[pageIndex]}
+                                    </span>
+                                    <span className="text-xs text-gray-500">{pageIndex + 1}</span>
+                                  </div>
+                                ))}
+                                <ThumbnailView
+                                  src={file.thumbnails[1]}
+                                  pageNum={file.pageCount}
+                                  fileId={file.id}
+                                  pageIndex={1}
+                                  pageName={file.pageNames[file.pageCount - 1]}
+                                  dragMode={dragMode}
+                                  draggingId={draggingId}
+                                  mergeTarget={mergeTarget}
+                                />
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  data-expand-btn
+                                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-500 cursor-pointer transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedFileIds(prev => new Set([...prev, file.id]));
+                                  }}
+                                  title="展开所有页面"
+                                >
+                                  <span className="text-lg font-medium leading-none">···</span>
+                                </button>
+                                <ThumbnailView
+                                  src={file.thumbnails[1]}
+                                  pageNum={file.pageCount}
+                                  fileId={file.id}
+                                  pageIndex={1}
+                                  pageName={file.pageNames[file.pageCount - 1]}
+                                  dragMode={dragMode}
+                                  draggingId={draggingId}
+                                  mergeTarget={mergeTarget}
+                                />
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+                      {expandedFileIds.has(file.id) && (
+                        <button
+                          data-expand-btn
+                          className="shrink-0 px-4 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-full cursor-pointer transition-colors text-sm mt-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedFileIds(prev => { const next = new Set(prev); next.delete(file.id); return next; });
+                          }}
+                        >
+                          收起
+                        </button>
                       )}
                     </div>
                   )}
