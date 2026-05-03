@@ -9,6 +9,7 @@ interface ThumbnailViewProps {
   dragMode: DragMode;
   draggingId: string | null;
   mergeTarget: MergeTarget | null;
+  isExpanded: boolean;
 }
 
 export default function ThumbnailView({
@@ -20,6 +21,7 @@ export default function ThumbnailView({
   dragMode,
   draggingId,
   mergeTarget,
+  isExpanded,
 }: ThumbnailViewProps) {
   const isMergeSource = dragMode === "merge" && draggingId === fileId;
   const isTarget =
@@ -43,6 +45,7 @@ export default function ThumbnailView({
         className={`
           w-28 h-36 bg-white rounded-lg shadow-sm border flex items-center justify-center p-2 transition-colors relative
           ${cursorClass}
+          ${isExpanded ? "hover:border-amber-400 hover:shadow-md" : ""}
           ${isTarget && mergeTarget?.side === "left" ? "border-l-4 border-l-blue-500" : ""}
           ${isTarget && mergeTarget?.side === "right" ? "border-r-4 border-r-blue-500" : ""}
         `}

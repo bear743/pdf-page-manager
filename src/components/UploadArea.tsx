@@ -168,7 +168,7 @@ export default function UploadArea() {
                   key={file.id}
                   data-file-id={file.id}
                   onPointerDown={(e) => handlePointerDown(e, file.id)}
-                  className={`relative flex flex-col items-center gap-2 border border-solid border-gray-200 bg-gray-50/50 rounded-xl p-4 cursor-move transition-all select-none ${
+                  className={`relative flex flex-col items-center gap-2 border border-solid border-gray-200 bg-gray-50/50 rounded-xl p-4 cursor-move transition-all select-none hover:border-blue-400 hover:shadow-md has-[[data-thumbnail-target]:hover]:border-gray-200 has-[[data-thumbnail-target]:hover]:shadow-none ${
                     draggingId === file.id
                       ? "opacity-50 scale-95 shadow-lg"
                       : ""
@@ -202,7 +202,11 @@ export default function UploadArea() {
                   {file.isLoading || file.isMerging ? (
                     <LoadingPlaceholder file={file} isMerging={file.isMerging} />
                   ) : (
-                    <div className="flex flex-col items-center">
+                    <div className={`flex flex-col items-center rounded-lg border-2 border-transparent transition-colors ${
+                      expandedFileIds.has(file.id)
+                        ? ""
+                        : "has-[[data-thumbnail-target]:hover]:border-amber-400 has-[[data-thumbnail-target]:hover]:bg-amber-50/30"
+                    }`}>
                       <div className={`flex items-center gap-2 flex-wrap max-w-80 justify-center ${expandedFileIds.has(file.id) ? "max-h-80 overflow-y-auto" : ""}`}>
                         <ThumbnailView
                           src={file.thumbnails[0]}
@@ -213,6 +217,7 @@ export default function UploadArea() {
                           dragMode={dragMode}
                           draggingId={draggingId}
                           mergeTarget={mergeTarget}
+                          isExpanded={expandedFileIds.has(file.id)}
                         />
 
                         {file.pageCount === 2 && (
@@ -225,6 +230,7 @@ export default function UploadArea() {
                             dragMode={dragMode}
                             draggingId={draggingId}
                             mergeTarget={mergeTarget}
+                            isExpanded={expandedFileIds.has(file.id)}
                           />
                         )}
 
@@ -234,7 +240,7 @@ export default function UploadArea() {
                               <>
                                 {Array.from({ length: file.pageCount - 2 }, (_, i) => i + 1).map((pageIndex) => (
                                   <div key={pageIndex} className="flex flex-col items-center gap-1">
-                                    <div className="w-28 h-36 bg-white rounded-lg shadow-sm border flex items-center justify-center p-2">
+                                    <div className="w-28 h-36 bg-white rounded-lg shadow-sm border flex items-center justify-center p-2 transition-colors hover:border-amber-400 hover:shadow-md">
                                     </div>
                                     <span className="text-xs text-gray-600 truncate max-w-28" title={file.pageNames[pageIndex]}>
                                       {file.pageNames[pageIndex]}
@@ -251,6 +257,7 @@ export default function UploadArea() {
                                   dragMode={dragMode}
                                   draggingId={draggingId}
                                   mergeTarget={mergeTarget}
+                                  isExpanded={expandedFileIds.has(file.id)}
                                 />
                               </>
                             ) : (
@@ -275,6 +282,7 @@ export default function UploadArea() {
                                   dragMode={dragMode}
                                   draggingId={draggingId}
                                   mergeTarget={mergeTarget}
+                                  isExpanded={expandedFileIds.has(file.id)}
                                 />
                               </>
                             )}
