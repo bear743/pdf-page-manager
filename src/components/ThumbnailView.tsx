@@ -6,6 +6,7 @@ interface ThumbnailViewProps {
   fileId: string;
   pageIndex: number;
   pageName: string;
+  originalPageNum?: number;
   dragMode: DragMode;
   draggingId: string | null;
   mergeTarget: MergeTarget | null;
@@ -18,6 +19,7 @@ export default function ThumbnailView({
   fileId,
   pageIndex,
   pageName,
+  originalPageNum,
   dragMode,
   draggingId,
   mergeTarget,
@@ -65,7 +67,12 @@ export default function ThumbnailView({
       >
         {pageName}
       </span>
-      <span className="text-xs text-gray-500">{pageNum}</span>
+      <span className="text-xs text-gray-500">
+        {pageNum}
+        {originalPageNum !== undefined && originalPageNum !== pageNum && (
+          <span className="text-orange-500"> ({originalPageNum})</span>
+        )}
+      </span>
     </div>
   );
 }

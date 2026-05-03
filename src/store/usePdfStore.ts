@@ -68,11 +68,12 @@ function parseRange(rangeStr: string): { start: number; end: number }[] | null {
 async function splitByRanges(
   files: PDFFile[],
   ranges: { start: number; end: number }[],
-): Promise<{ file: File; pageNames: string[] }[]> {
-  const results: { file: File; pageNames: string[] }[] = [];
+): Promise<{ file: File; pageNames: string[]; originalPageNumbers: number[] }[]> {
+  const results: { file: File; pageNames: string[]; originalPageNumbers: number[] }[] = [];
   let nextRangeIdx = 0;
   let outputDoc = await PDFDocument.create();
   let outputPageNames: string[] = [];
+  let outputOriginalPageNumbers: number[] = [];
   let outputSourceName = "split.pdf";
 
   let currentGlobal = 1;
@@ -113,6 +114,9 @@ async function splitByRanges(
       outputPageNames.push(
         ...pdfFile.pageNames.slice(localStart, localEnd + 1),
       );
+      outputOriginalPageNumbers.push(
+        ...pdfFile.originalPageNumbers.slice(localStart, localEnd + 1),
+      );
 
       if (ranges[i].end <= fileEnd) {
         const bytes = await outputDoc.save();
@@ -123,9 +127,11 @@ async function splitByRanges(
             { type: "application/pdf" },
           ),
           pageNames: outputPageNames,
+          originalPageNumbers: outputOriginalPageNumbers,
         });
         outputDoc = await PDFDocument.create();
         outputPageNames = [];
+        outputOriginalPageNumbers = [];
         outputSourceName = "split.pdf";
         nextRangeIdx = i + 1;
       }
@@ -168,6 +174,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
             pageCount: 0,
             thumbnails: [],
             pageNames: [file.name],
+            originalPageNumbers: [],
             isLoading: true,
           },
         ],
@@ -183,6 +190,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
                 pageCount,
                 thumbnails,
                 pageNames: Array(pageCount).fill(file.name),
+                originalPageNumbers: Array.from({ length: pageCount }, (_, i) => i + 1),
                 isLoading: false,
               }
             : f,
@@ -208,7 +216,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
     }));
 
     try {
-      const { file: mergedFile, pageNames, thumbnails, pageCount } =
+      const { file: mergedFile, pageNames, thumbnails, pageCount, originalPageNumbers } =
         await mergeTwoPDFs(sourcePdf, targetPdf, pageIndex, side);
 
       set((s) => ({
@@ -222,6 +230,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
                   pageCount,
                   thumbnails,
                   pageNames,
+                  originalPageNumbers,
                   isLoading: false,
                   isMerging: false,
                 }
@@ -255,6 +264,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       const mergedPdf = await PDFDocument.create();
       let outputPageNames: string[] = [];
       let outputThumbnails: (string | null)[] = [];
+      let outputOriginalPageNumbers: number[] = [];
       let outputSourceName = loadedFiles[0].file.name;
 
       for (const pdfFile of loadedFiles) {
@@ -265,6 +275,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
         }
         outputPageNames.push(...pdfFile.pageNames);
         outputThumbnails.push(...pdfFile.thumbnails);
+        outputOriginalPageNumbers.push(...pdfFile.originalPageNumbers);
       }
 
       const bytes = await mergedPdf.save();
@@ -282,6 +293,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
             pageCount: outputPageNames.length,
             thumbnails: outputThumbnails,
             pageNames: outputPageNames,
+            originalPageNumbers: outputOriginalPageNumbers,
             isLoading: false,
           },
         ],
@@ -336,7 +348,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
     try {
       const splitResults = await splitByRanges(loadedFiles, ranges);
       const newFiles: PDFFile[] = [];
-      for (const { file: newFile, pageNames } of splitResults) {
+      for (const { file: newFile, pageNames, originalPageNumbers } of splitResults) {
         const { pageCount, thumbnails } = await generateThumbnails(newFile);
 
         newFiles.push({
@@ -345,6 +357,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
           pageCount,
           thumbnails,
           pageNames,
+          originalPageNumbers,
           isLoading: false,
         });
       }
@@ -396,9 +409,10 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
     }));
 
     try {
-      const results: { file: File; pageNames: string[] }[] = [];
+      const results: { file: File; pageNames: string[]; originalPageNumbers: number[] }[] = [];
       let outputDoc = await PDFDocument.create();
       let outputPageNames: string[] = [];
+      let outputOriginalPageNumbers: number[] = [];
       let pageCounter = 0;
 
       for (const pdfFile of loadedFiles) {
@@ -409,6 +423,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
           const [page] = await outputDoc.copyPages(pdf, [i]);
           outputDoc.addPage(page);
           outputPageNames.push(pdfFile.pageNames[i]);
+          outputOriginalPageNumbers.push(pdfFile.originalPageNumbers[i]);
           pageCounter++;
 
           if (pageCounter === fixedSplitSize) {
@@ -420,9 +435,11 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
                 { type: "application/pdf" },
               ),
               pageNames: outputPageNames,
+              originalPageNumbers: outputOriginalPageNumbers,
             });
             outputDoc = await PDFDocument.create();
             outputPageNames = [];
+            outputOriginalPageNumbers = [];
             pageCounter = 0;
           }
         }
@@ -438,11 +455,12 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
             { type: "application/pdf" },
           ),
           pageNames: outputPageNames,
+          originalPageNumbers: outputOriginalPageNumbers,
         });
       }
 
       const newFiles: PDFFile[] = [];
-      for (const { file: newFile, pageNames } of results) {
+      for (const { file: newFile, pageNames, originalPageNumbers } of results) {
         const { pageCount, thumbnails } = await generateThumbnails(newFile);
         newFiles.push({
           id: Math.random().toString(36).slice(2),
@@ -450,6 +468,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
           pageCount,
           thumbnails,
           pageNames,
+          originalPageNumbers,
           isLoading: false,
         });
       }

@@ -214,6 +214,7 @@ export default function UploadArea() {
                           fileId={file.id}
                           pageIndex={0}
                           pageName={file.pageNames[0]}
+                          originalPageNum={file.originalPageNumbers[0]}
                           dragMode={dragMode}
                           draggingId={draggingId}
                           mergeTarget={mergeTarget}
@@ -227,6 +228,7 @@ export default function UploadArea() {
                             fileId={file.id}
                             pageIndex={1}
                             pageName={file.pageNames[1]}
+                            originalPageNum={file.originalPageNumbers[1]}
                             dragMode={dragMode}
                             draggingId={draggingId}
                             mergeTarget={mergeTarget}
@@ -246,6 +248,7 @@ export default function UploadArea() {
                                     fileId={file.id}
                                     pageIndex={pageIndex}
                                     pageName={file.pageNames[pageIndex]}
+                                    originalPageNum={file.originalPageNumbers[pageIndex]}
                                     dragMode={dragMode}
                                     draggingId={draggingId}
                                     mergeTarget={mergeTarget}
@@ -258,6 +261,7 @@ export default function UploadArea() {
                                   fileId={file.id}
                                   pageIndex={file.pageCount - 1}
                                   pageName={file.pageNames[file.pageCount - 1]}
+                                  originalPageNum={file.originalPageNumbers[file.pageCount - 1]}
                                   dragMode={dragMode}
                                   draggingId={draggingId}
                                   mergeTarget={mergeTarget}
@@ -283,6 +287,7 @@ export default function UploadArea() {
                                   fileId={file.id}
                                   pageIndex={file.pageCount - 1}
                                   pageName={file.pageNames[file.pageCount - 1]}
+                                  originalPageNum={file.originalPageNumbers[file.pageCount - 1]}
                                   dragMode={dragMode}
                                   draggingId={draggingId}
                                   mergeTarget={mergeTarget}

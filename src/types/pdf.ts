@@ -4,6 +4,7 @@ export type PDFFile = {
   pageCount: number;
   thumbnails: (string | null)[];
   pageNames: string[];
+  originalPageNumbers: number[];
   isLoading: boolean;
   isMerging?: boolean;
 };

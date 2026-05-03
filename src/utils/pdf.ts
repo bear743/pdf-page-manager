@@ -75,6 +75,7 @@ export async function mergeTwoPDFs(
   pageNames: string[];
   thumbnails: (string | null)[];
   pageCount: number;
+  originalPageNumbers: number[];
 }> {
   const mergedPdf = await PDFDocument.create();
 
@@ -108,6 +109,12 @@ export async function mergeTwoPDFs(
     ...target.pageNames.slice(insertIndex),
   ];
 
+  const newOriginalPageNumbers = [
+    ...target.originalPageNumbers.slice(0, insertIndex),
+    ...source.originalPageNumbers,
+    ...target.originalPageNumbers.slice(insertIndex),
+  ];
+
   const newThumbnails = [
     ...target.thumbnails.slice(0, insertIndex),
     ...source.thumbnails,
@@ -128,5 +135,6 @@ export async function mergeTwoPDFs(
     pageNames: newPageNames,
     thumbnails: newThumbnails,
     pageCount: allPages.length,
+    originalPageNumbers: newOriginalPageNumbers,
   };
 }
