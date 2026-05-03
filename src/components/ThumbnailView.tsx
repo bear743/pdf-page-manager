@@ -1,7 +1,7 @@
 import type { MergeTarget, DragMode } from "../utils/dnd";
 
 interface ThumbnailViewProps {
-  src: string;
+  src: string | null;
   pageNum: number;
   fileId: string;
   pageIndex: number;
@@ -50,12 +50,14 @@ export default function ThumbnailView({
           ${isTarget && mergeTarget?.side === "right" ? "border-r-4 border-r-blue-500" : ""}
         `}
       >
-        <img
-          src={src}
-          className="max-w-full max-h-full object-contain"
-          alt=""
-          draggable={false}
-        />
+        {src && (
+          <img
+            src={src}
+            className="max-w-full max-h-full object-contain"
+            alt=""
+            draggable={false}
+          />
+        )}
       </div>
       <span
         className="text-xs text-gray-600 truncate max-w-28"

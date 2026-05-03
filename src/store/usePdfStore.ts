@@ -208,13 +208,8 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
     }));
 
     try {
-      const { file: mergedFile, pageNames } = await mergeTwoPDFs(
-        sourcePdf,
-        targetPdf,
-        pageIndex,
-        side,
-      );
-      const { pageCount, thumbnails } = await generateThumbnails(mergedFile);
+      const { file: mergedFile, pageNames, thumbnails, pageCount } =
+        await mergeTwoPDFs(sourcePdf, targetPdf, pageIndex, side);
 
       set((s) => ({
         files: s.files
@@ -259,6 +254,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
     try {
       const mergedPdf = await PDFDocument.create();
       let outputPageNames: string[] = [];
+      let outputThumbnails: (string | null)[] = [];
       let outputSourceName = loadedFiles[0].file.name;
 
       for (const pdfFile of loadedFiles) {
@@ -268,6 +264,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
           mergedPdf.addPage(page);
         }
         outputPageNames.push(...pdfFile.pageNames);
+        outputThumbnails.push(...pdfFile.thumbnails);
       }
 
       const bytes = await mergedPdf.save();
@@ -276,15 +273,14 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
         outputSourceName,
         { type: "application/pdf" },
       );
-      const { pageCount, thumbnails } = await generateThumbnails(mergedFile);
 
       set({
         files: [
           {
             id: Math.random().toString(36).slice(2),
             file: mergedFile,
-            pageCount,
-            thumbnails,
+            pageCount: outputPageNames.length,
+            thumbnails: outputThumbnails,
             pageNames: outputPageNames,
             isLoading: false,
           },

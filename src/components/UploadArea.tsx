@@ -239,20 +239,24 @@ export default function UploadArea() {
                             {expandedFileIds.has(file.id) ? (
                               <>
                                 {Array.from({ length: file.pageCount - 2 }, (_, i) => i + 1).map((pageIndex) => (
-                                  <div key={pageIndex} className="flex flex-col items-center gap-1">
-                                    <div className="w-28 h-36 bg-white rounded-lg shadow-sm border flex items-center justify-center p-2 transition-colors hover:border-amber-400 hover:shadow-md">
-                                    </div>
-                                    <span className="text-xs text-gray-600 truncate max-w-28" title={file.pageNames[pageIndex]}>
-                                      {file.pageNames[pageIndex]}
-                                    </span>
-                                    <span className="text-xs text-gray-500">{pageIndex + 1}</span>
-                                  </div>
+                                  <ThumbnailView
+                                    key={pageIndex}
+                                    src={file.thumbnails[pageIndex]}
+                                    pageNum={pageIndex + 1}
+                                    fileId={file.id}
+                                    pageIndex={pageIndex}
+                                    pageName={file.pageNames[pageIndex]}
+                                    dragMode={dragMode}
+                                    draggingId={draggingId}
+                                    mergeTarget={mergeTarget}
+                                    isExpanded={true}
+                                  />
                                 ))}
                                 <ThumbnailView
-                                  src={file.thumbnails[1]}
+                                  src={file.thumbnails[file.pageCount - 1]}
                                   pageNum={file.pageCount}
                                   fileId={file.id}
-                                  pageIndex={1}
+                                  pageIndex={file.pageCount - 1}
                                   pageName={file.pageNames[file.pageCount - 1]}
                                   dragMode={dragMode}
                                   draggingId={draggingId}
@@ -274,10 +278,10 @@ export default function UploadArea() {
                                   <span className="text-lg font-medium leading-none">···</span>
                                 </button>
                                 <ThumbnailView
-                                  src={file.thumbnails[1]}
+                                  src={file.thumbnails[file.pageCount - 1]}
                                   pageNum={file.pageCount}
                                   fileId={file.id}
-                                  pageIndex={1}
+                                  pageIndex={file.pageCount - 1}
                                   pageName={file.pageNames[file.pageCount - 1]}
                                   dragMode={dragMode}
                                   draggingId={draggingId}

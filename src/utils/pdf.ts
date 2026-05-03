@@ -39,7 +39,7 @@ function getDocumentFromFile(file: File): Promise<pdfjsLib.PDFDocumentProxy> {
 
 export async function generateThumbnails(
   file: File,
-): Promise<{ pageCount: number; thumbnails: string[] }> {
+): Promise<{ pageCount: number; thumbnails: (string | null)[] }> {
   const pdf = await getDocumentFromFile(file);
   const pageCount = pdf.numPages;
 
@@ -48,7 +48,7 @@ export async function generateThumbnails(
   else if (pageCount === 2) pagesToRender.push(1, 2);
   else pagesToRender.push(1, pageCount);
 
-  const thumbnails: string[] = [];
+  const thumbnails: (string | null)[] = new Array(pageCount).fill(null);
   for (const pageNum of pagesToRender) {
     const page = await pdf.getPage(pageNum);
     const scale = 0.3;
@@ -58,7 +58,7 @@ export async function generateThumbnails(
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-    thumbnails.push(canvas.toDataURL("image/png"));
+    thumbnails[pageNum - 1] = canvas.toDataURL("image/png");
   }
 
   pdf.destroy();
@@ -70,7 +70,12 @@ export async function mergeTwoPDFs(
   target: PDFFile,
   pageIndex: number,
   side: "left" | "right",
-): Promise<{ file: File; pageNames: string[] }> {
+): Promise<{
+  file: File;
+  pageNames: string[];
+  thumbnails: (string | null)[];
+  pageCount: number;
+}> {
   const mergedPdf = await PDFDocument.create();
 
   const targetPdf = await PDFDocument.load(await target.file.arrayBuffer());
@@ -85,16 +90,10 @@ export async function mergeTwoPDFs(
     sourcePdf.getPageIndices(),
   );
 
-  let insertIndex: number;
-  if (pageIndex === 0 && side === "left") {
-    insertIndex = 0;
-  } else if (pageIndex === 0 && side === "right") {
-    insertIndex = 1;
-  } else if (pageIndex === 1 && side === "left") {
-    insertIndex = Math.max(0, targetPages.length - 1);
-  } else {
-    insertIndex = targetPages.length;
-  }
+  const insertIndex =
+    side === "left"
+      ? Math.max(0, Math.min(pageIndex, targetPages.length))
+      : Math.max(0, Math.min(pageIndex + 1, targetPages.length));
 
   const allPages = [...targetPages];
   allPages.splice(insertIndex, 0, ...sourcePages);
@@ -109,6 +108,12 @@ export async function mergeTwoPDFs(
     ...target.pageNames.slice(insertIndex),
   ];
 
+  const newThumbnails = [
+    ...target.thumbnails.slice(0, insertIndex),
+    ...source.thumbnails,
+    ...target.thumbnails.slice(insertIndex),
+  ];
+
   const mergedBytes = await mergedPdf.save();
   const mergedFile = new File(
     [mergedBytes as unknown as BlobPart],
@@ -118,5 +123,10 @@ export async function mergeTwoPDFs(
     },
   );
 
-  return { file: mergedFile, pageNames: newPageNames };
+  return {
+    file: mergedFile,
+    pageNames: newPageNames,
+    thumbnails: newThumbnails,
+    pageCount: allPages.length,
+  };
 }
