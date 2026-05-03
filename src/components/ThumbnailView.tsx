@@ -11,6 +11,10 @@ interface ThumbnailViewProps {
   draggingId: string | null;
   mergeTarget: MergeTarget | null;
   isExpanded: boolean;
+  onPointerDown?: (e: React.PointerEvent, fileId: string, pageIndex: number) => void;
+  isPageDragging?: boolean;
+  pageOverIndex?: { fileId: string; index: number } | null;
+  isPageMoveTarget?: boolean;
 }
 
 export default function ThumbnailView({
@@ -24,19 +28,29 @@ export default function ThumbnailView({
   draggingId,
   mergeTarget,
   isExpanded,
+  onPointerDown,
+  isPageDragging,
+  pageOverIndex,
+  isPageMoveTarget,
 }: ThumbnailViewProps) {
   const isMergeSource = dragMode === "merge" && draggingId === fileId;
   const isTarget =
-    dragMode === "merge" &&
+    (dragMode === "merge" || isPageMoveTarget) &&
     mergeTarget?.fileId === fileId &&
     mergeTarget.pageIndex === pageIndex;
+
+  const isPageReorderSource = isPageDragging && draggingId === `${fileId}-${pageIndex}`;
+  const isPageOverLeft = pageOverIndex?.fileId === fileId && pageOverIndex?.index === pageIndex;
+  const isPageOverRight = pageOverIndex?.fileId === fileId && pageOverIndex?.index === pageIndex + 1;
 
   const cursorClass =
     dragMode === "reorder"
       ? "cursor-move"
-      : isMergeSource
+      : isMergeSource || isPageReorderSource
         ? "cursor-grabbing"
-        : "cursor-grab";
+        : onPointerDown && isExpanded
+          ? "cursor-grab"
+          : "cursor-grab";
 
   return (
     <div className="flex flex-col items-center gap-1">
@@ -44,12 +58,16 @@ export default function ThumbnailView({
         data-thumbnail-target
         data-file-id={fileId}
         data-page-index={pageIndex}
+        onPointerDown={onPointerDown ? (e) => onPointerDown(e, fileId, pageIndex) : undefined}
         className={`
           w-28 h-36 bg-white rounded-lg shadow-sm border flex items-center justify-center p-2 transition-colors relative
           ${cursorClass}
-          ${isExpanded ? "hover:border-amber-400 hover:shadow-md" : ""}
+          ${isExpanded && onPointerDown ? "hover:border-amber-400 hover:shadow-md" : ""}
           ${isTarget && mergeTarget?.side === "left" ? "border-l-4 border-l-blue-500" : ""}
           ${isTarget && mergeTarget?.side === "right" ? "border-r-4 border-r-blue-500" : ""}
+          ${isPageReorderSource ? "opacity-50" : ""}
+          ${isPageOverLeft ? "border-l-4 border-l-green-500" : ""}
+          ${isPageOverRight ? "border-r-4 border-r-green-500" : ""}
         `}
       >
         {src && (

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { PDFDocument } from "pdf-lib";
 import type { PDFFile } from "../types/pdf";
-import { generateThumbnails, mergeTwoPDFs } from "../utils/pdf";
+import { generateThumbnails, mergeTwoPDFs, movePageToTarget, reorderPdfPages } from "../utils/pdf";
 
 interface PdfStore {
   files: PDFFile[];
@@ -14,6 +14,14 @@ interface PdfStore {
   addFiles: (fileList: FileList | null) => Promise<void>;
   removeFile: (id: string) => void;
   reorderFiles: (files: PDFFile[]) => void;
+  reorderPages: (fileId: string, fromIndex: number, toIndex: number) => void;
+  movePage: (
+    sourceId: string,
+    sourcePageIndex: number,
+    targetId: string,
+    targetPageIndex: number,
+    side: "left" | "right",
+  ) => Promise<void>;
   mergeFiles: (
     sourceId: string,
     targetId: string,
@@ -200,6 +208,88 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
   },
 
   reorderFiles: (files) => set({ files }),
+  reorderPages: async (fileId: string, fromIndex: number, toIndex: number) => {
+    const { files } = get();
+    const pdfFile = files.find((f) => f.id === fileId);
+    if (!pdfFile) return;
+
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id === fileId ? { ...f, isMerging: true } : f,
+      ),
+    }));
+
+    try {
+      const result = await reorderPdfPages(pdfFile, fromIndex, toIndex);
+      set((state) => ({
+        files: state.files.map((f) =>
+          f.id === fileId
+            ? { ...f, file: result.file, thumbnails: result.thumbnails, pageNames: result.pageNames, originalPageNumbers: result.originalPageNumbers, isMerging: false }
+            : f,
+        ),
+      }));
+    } catch (err) {
+      console.error("Reorder pages failed:", err);
+      set((state) => ({
+        files: state.files.map((f) =>
+          f.id === fileId ? { ...f, isMerging: false } : f,
+        ),
+      }));
+    }
+  },
+
+  movePage: async (sourceId, sourcePageIndex, targetId, targetPageIndex, side) => {
+    const { files } = get();
+    const sourcePdf = files.find((f) => f.id === sourceId);
+    const targetPdf = files.find((f) => f.id === targetId);
+    if (!sourcePdf || !targetPdf) return;
+
+    set((s) => ({
+      files: s.files.map((f) =>
+        f.id === sourceId || f.id === targetId ? { ...f, isMerging: true } : f,
+      ),
+    }));
+
+    try {
+      const result = await movePageToTarget(sourcePdf, sourcePageIndex, targetPdf, targetPageIndex, side);
+
+      set((s) => ({
+        files: s.files.map((f) => {
+          if (f.id === sourceId) {
+            return {
+              ...f,
+              file: result.sourceFile,
+              pageCount: result.sourcePageCount,
+              thumbnails: result.sourceThumbnails,
+              pageNames: result.sourcePageNames,
+              originalPageNumbers: result.sourceOriginalPageNumbers,
+              isMerging: false,
+            };
+          }
+          if (f.id === targetId) {
+            return {
+              ...f,
+              file: result.targetFile,
+              pageCount: result.targetPageCount,
+              thumbnails: result.targetThumbnails,
+              pageNames: result.targetPageNames,
+              originalPageNumbers: result.targetOriginalPageNumbers,
+              isMerging: false,
+            };
+          }
+          return f;
+        }),
+      }));
+    } catch (err) {
+      console.error("Move page failed:", err);
+      alert("页面移动失败，请检查文件是否有效");
+      set((s) => ({
+        files: s.files.map((f) =>
+          f.id === sourceId || f.id === targetId ? { ...f, isMerging: false } : f,
+        ),
+      }));
+    }
+  },
 
   removeFile: (id) => set((state) => ({ files: state.files.filter((f) => f.id !== id) })),
 

@@ -5,6 +5,16 @@ import type { MergeTarget, DragMode } from "../utils/dnd";
 import { getInsertIndex, getMergeTarget } from "../utils/dnd";
 import ThumbnailView from "./ThumbnailView";
 
+type PageDragMode = "page-reorder" | "page-move" | null;
+
+interface PageDragState {
+  sourceFileId: string;
+  sourcePageIndex: number;
+  mode: PageDragMode;
+  insertIndex: number | null;
+  mergeTarget: MergeTarget | null;
+}
+
 export default function UploadArea() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -12,6 +22,8 @@ export default function UploadArea() {
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const [mergeTarget, setMergeTarget] = useState<MergeTarget | null>(null);
   const [expandedFileIds, setExpandedFileIds] = useState<Set<string>>(new Set());
+  const [pageDraggingId, setPageDraggingId] = useState<string | null>(null);
+  const [pageOverIndex, setPageOverIndex] = useState<{ fileId: string; index: number } | null>(null);
 
   const dragState = useRef<{
     id: string | null;
@@ -20,10 +32,14 @@ export default function UploadArea() {
     mergeTarget: MergeTarget | null;
   }>({ id: null, insertIndex: null, mode: null, mergeTarget: null });
 
+  const pageDragState = useRef<PageDragState | null>(null);
+
   const files = usePdfStore((s) => s.files);
   const addFiles = usePdfStore((s) => s.addFiles);
   const removeFile = usePdfStore((s) => s.removeFile);
   const reorderFiles = usePdfStore((s) => s.reorderFiles);
+  const reorderPages = usePdfStore((s) => s.reorderPages);
+  const movePage = usePdfStore((s) => s.movePage);
   const mergeFiles = usePdfStore((s) => s.mergeFiles);
 
   function handleClick() {
@@ -141,6 +157,160 @@ export default function UploadArea() {
     document.addEventListener("pointerup", onPointerUp);
   }
 
+  function handlePagePointerDown(
+    e: React.PointerEvent,
+    fileId: string,
+    pageIndex: number,
+  ) {
+    if (!expandedFileIds.has(fileId)) return;
+
+    e.stopPropagation();
+
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+
+    pageDragState.current = {
+      sourceFileId: fileId,
+      sourcePageIndex: pageIndex,
+      mode: null,
+      insertIndex: null,
+      mergeTarget: null,
+    };
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let isDragging = false;
+
+    function onPointerMove(moveEvent: PointerEvent) {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+
+      if (!isDragging && Math.sqrt(dx * dx + dy * dy) > 5) {
+        isDragging = true;
+        setPageDraggingId(`${fileId}-${pageIndex}`);
+        pageDragState.current!.mode = "page-reorder";
+      }
+
+      if (isDragging && pageDragState.current) {
+        const otherCardThumb = getThumbnailAtPoint(moveEvent.clientX, moveEvent.clientY);
+        const targetFileId = otherCardThumb?.getAttribute("data-file-id") || null;
+        const targetPageIdx = otherCardThumb ? parseInt(otherCardThumb.getAttribute("data-page-index") || "0") : null;
+
+        if (pageDragState.current.mode === "page-reorder") {
+          if (targetFileId && targetFileId !== fileId && expandedFileIds.has(targetFileId)) {
+            // Switch to page-move mode
+            pageDragState.current.mode = "page-move";
+            const side = moveEvent.clientX < (otherCardThumb!.getBoundingClientRect().left + otherCardThumb!.getBoundingClientRect().right) / 2 ? "left" : "right";
+            pageDragState.current.mergeTarget = { fileId: targetFileId, pageIndex: targetPageIdx!, side };
+            setMergeTarget(pageDragState.current.mergeTarget);
+            setPageOverIndex(null);
+          } else {
+            const insertIdx = getPageInsertIndex(moveEvent.clientX, moveEvent.clientY, fileId);
+            pageDragState.current.insertIndex = insertIdx;
+            setPageOverIndex({ fileId, index: insertIdx });
+            if (mergeTarget !== null) setMergeTarget(null);
+          }
+        } else if (pageDragState.current.mode === "page-move") {
+          if (targetFileId && targetFileId === fileId && expandedFileIds.has(targetFileId)) {
+            // Switch back to page-reorder mode
+            pageDragState.current.mode = "page-reorder";
+            pageDragState.current.mergeTarget = null;
+            setMergeTarget(null);
+            const insertIdx = getPageInsertIndex(moveEvent.clientX, moveEvent.clientY, fileId);
+            pageDragState.current.insertIndex = insertIdx;
+            setPageOverIndex({ fileId, index: insertIdx });
+          } else if (targetFileId && targetFileId !== fileId && expandedFileIds.has(targetFileId)) {
+            const side = moveEvent.clientX < (otherCardThumb!.getBoundingClientRect().left + otherCardThumb!.getBoundingClientRect().right) / 2 ? "left" : "right";
+            const needsUpdate = !pageDragState.current.mergeTarget ||
+              pageDragState.current.mergeTarget.fileId !== targetFileId ||
+              pageDragState.current.mergeTarget.pageIndex !== targetPageIdx ||
+              pageDragState.current.mergeTarget.side !== side;
+            if (needsUpdate) {
+              pageDragState.current.mergeTarget = { fileId: targetFileId, pageIndex: targetPageIdx!, side };
+              setMergeTarget({ fileId: targetFileId, pageIndex: targetPageIdx!, side });
+            }
+          } else {
+            pageDragState.current.mergeTarget = null;
+            setMergeTarget(null);
+          }
+        }
+      }
+    }
+
+    function onPointerUp() {
+      target.releasePointerCapture(e.pointerId);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+
+      if (isDragging && pageDragState.current) {
+        const { sourceFileId, sourcePageIndex, mode, insertIndex, mergeTarget } = pageDragState.current;
+
+        if (mode === "page-reorder" && insertIndex !== null) {
+          const sourceFile = files.find((f) => f.id === sourceFileId);
+          if (sourceFile) {
+            const fromIdx = sourcePageIndex;
+            const toIdx = insertIndex;
+            if (fromIdx !== toIdx) {
+              reorderPages(sourceFileId, fromIdx, toIdx);
+            }
+          }
+        } else if (mode === "page-move" && mergeTarget) {
+          movePage(sourceFileId, sourcePageIndex, mergeTarget.fileId, mergeTarget.pageIndex, mergeTarget.side);
+        }
+      }
+
+      pageDragState.current = null;
+      setPageDraggingId(null);
+      setPageOverIndex(null);
+      setMergeTarget(null);
+    }
+
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+  }
+
+  function getThumbnailAtPoint(x: number, y: number): HTMLElement | null {
+    const thumbnails = document.querySelectorAll("[data-thumbnail-target]");
+    for (const el of thumbnails) {
+      const rect = el.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        return el as HTMLElement;
+      }
+    }
+    return null;
+  }
+
+  function getPageInsertIndex(x: number, y: number, excludeFileId: string): number {
+    const thumbnails = Array.from(
+      document.querySelectorAll(`[data-file-id="${excludeFileId}"] [data-thumbnail-target]`),
+    ) as HTMLElement[];
+
+    if (thumbnails.length === 0) return 0;
+
+    // Find the thumbnail closest to cursor by vertical distance to midpoint
+    let closestIndex = 0;
+    let closestDist = Infinity;
+
+    for (let i = 0; i < thumbnails.length; i++) {
+      const rect = thumbnails[i].getBoundingClientRect();
+      const midY = (rect.top + rect.bottom) / 2;
+      const dist = Math.abs(y - midY);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestIndex = i;
+      }
+    }
+
+    const closestRect = thumbnails[closestIndex].getBoundingClientRect();
+    const midX = (closestRect.left + closestRect.right) / 2;
+
+    if (x <= midX) {
+      return closestIndex;
+    } else {
+      return closestIndex + 1;
+    }
+  }
+
   return (
     <div className="h-[90%] p-2">
       <div
@@ -219,6 +389,10 @@ export default function UploadArea() {
                           draggingId={draggingId}
                           mergeTarget={mergeTarget}
                           isExpanded={expandedFileIds.has(file.id)}
+                          onPointerDown={handlePagePointerDown}
+                          isPageDragging={!!pageDraggingId}
+                          pageOverIndex={pageOverIndex}
+                          isPageMoveTarget={!!pageDraggingId}
                         />
 
                         {file.pageCount === 2 && (
@@ -233,6 +407,10 @@ export default function UploadArea() {
                             draggingId={draggingId}
                             mergeTarget={mergeTarget}
                             isExpanded={expandedFileIds.has(file.id)}
+                            onPointerDown={handlePagePointerDown}
+                            isPageDragging={!!pageDraggingId}
+                            pageOverIndex={pageOverIndex}
+                            isPageMoveTarget={!!pageDraggingId}
                           />
                         )}
 
@@ -253,6 +431,10 @@ export default function UploadArea() {
                                     draggingId={draggingId}
                                     mergeTarget={mergeTarget}
                                     isExpanded={true}
+                                    onPointerDown={handlePagePointerDown}
+                                    isPageDragging={!!pageDraggingId}
+                                    pageOverIndex={pageOverIndex}
+                                    isPageMoveTarget={!!pageDraggingId}
                                   />
                                 ))}
                                 <ThumbnailView
@@ -266,6 +448,10 @@ export default function UploadArea() {
                                   draggingId={draggingId}
                                   mergeTarget={mergeTarget}
                                   isExpanded={expandedFileIds.has(file.id)}
+                                  onPointerDown={handlePagePointerDown}
+                                  isPageDragging={!!pageDraggingId}
+                                  pageOverIndex={pageOverIndex}
+                                  isPageMoveTarget={!!pageDraggingId}
                                 />
                               </>
                             ) : (
@@ -292,6 +478,10 @@ export default function UploadArea() {
                                   draggingId={draggingId}
                                   mergeTarget={mergeTarget}
                                   isExpanded={expandedFileIds.has(file.id)}
+                                  onPointerDown={handlePagePointerDown}
+                                  isPageDragging={!!pageDraggingId}
+                                  pageOverIndex={pageOverIndex}
+                                  isPageMoveTarget={!!pageDraggingId}
                                 />
                               </>
                             )}

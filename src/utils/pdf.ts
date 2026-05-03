@@ -138,3 +138,135 @@ export async function mergeTwoPDFs(
     originalPageNumbers: newOriginalPageNumbers,
   };
 }
+
+export async function movePageToTarget(
+  source: PDFFile,
+  sourcePageIndex: number,
+  target: PDFFile,
+  targetPageIndex: number,
+  side: "left" | "right",
+): Promise<{
+  sourceFile: File;
+  sourcePageNames: string[];
+  sourceThumbnails: (string | null)[];
+  sourcePageCount: number;
+  sourceOriginalPageNumbers: number[];
+  targetFile: File;
+  targetPageNames: string[];
+  targetThumbnails: (string | null)[];
+  targetPageCount: number;
+  targetOriginalPageNumbers: number[];
+}> {
+  const sourcePdf = await PDFDocument.load(await source.file.arrayBuffer());
+  const targetPdf = await PDFDocument.load(await target.file.arrayBuffer());
+
+  // Create new source PDF (without the moved page)
+  const newSourcePdf = await PDFDocument.create();
+  const sourcePageIndices = sourcePdf.getPageIndices().filter((_, i) => i !== sourcePageIndex);
+  const sourcePages = await newSourcePdf.copyPages(sourcePdf, sourcePageIndices);
+  for (const page of sourcePages) {
+    newSourcePdf.addPage(page);
+  }
+
+  // Create new target PDF (with the inserted page)
+  const newTargetPdf = await PDFDocument.create();
+  const targetPages = await newTargetPdf.copyPages(targetPdf, targetPdf.getPageIndices());
+  const [movedPage] = await newTargetPdf.copyPages(sourcePdf, [sourcePageIndex]);
+
+  const insertIndex =
+    side === "left"
+      ? Math.max(0, Math.min(targetPageIndex, targetPages.length))
+      : Math.max(0, Math.min(targetPageIndex + 1, targetPages.length));
+
+  targetPages.splice(insertIndex, 0, movedPage);
+  for (const page of targetPages) {
+    newTargetPdf.addPage(page);
+  }
+
+  const newSourcePageNames = source.pageNames.filter((_, i) => i !== sourcePageIndex);
+  const newSourceOriginalPageNumbers = source.originalPageNumbers.filter((_, i) => i !== sourcePageIndex);
+  const newSourceThumbnails = source.thumbnails.filter((_, i) => i !== sourcePageIndex);
+
+  const newTargetPageNames = [
+    ...target.pageNames.slice(0, insertIndex),
+    source.pageNames[sourcePageIndex],
+    ...target.pageNames.slice(insertIndex),
+  ];
+  const newTargetOriginalPageNumbers = [
+    ...target.originalPageNumbers.slice(0, insertIndex),
+    source.originalPageNumbers[sourcePageIndex],
+    ...target.originalPageNumbers.slice(insertIndex),
+  ];
+  const newTargetThumbnails = [
+    ...target.thumbnails.slice(0, insertIndex),
+    source.thumbnails[sourcePageIndex],
+    ...target.thumbnails.slice(insertIndex),
+  ];
+
+  const sourceBytes = await newSourcePdf.save();
+  const sourceFile = new File([sourceBytes as unknown as BlobPart], source.file.name, { type: "application/pdf" });
+
+  const targetBytes = await newTargetPdf.save();
+  const targetFile = new File([targetBytes as unknown as BlobPart], target.file.name, { type: "application/pdf" });
+
+  return {
+    sourceFile,
+    sourcePageNames: newSourcePageNames,
+    sourceThumbnails: newSourceThumbnails,
+    sourcePageCount: newSourcePageNames.length,
+    sourceOriginalPageNumbers: newSourceOriginalPageNumbers,
+    targetFile,
+    targetPageNames: newTargetPageNames,
+    targetThumbnails: newTargetThumbnails,
+    targetPageCount: newTargetPageNames.length,
+    targetOriginalPageNumbers: newTargetOriginalPageNumbers,
+  };
+}
+
+export async function reorderPdfPages(
+  file: PDFFile,
+  fromIndex: number,
+  toIndex: number,
+): Promise<{ file: File; pageNames: string[]; originalPageNumbers: number[]; thumbnails: (string | null)[] }> {
+  const pdfDoc = await PDFDocument.load(await file.file.arrayBuffer());
+  const pageCount = pdfDoc.getPageCount();
+
+  // Build new page order
+  const newOrder: number[] = [];
+  for (let i = 0; i < pageCount; i++) {
+    if (i === fromIndex) continue; // skip the moved page
+    newOrder.push(i);
+  }
+  newOrder.splice(toIndex > fromIndex ? toIndex - 1 : toIndex, 0, fromIndex);
+
+  // Create new PDF with reordered pages
+  const newPdfDoc = await PDFDocument.create();
+  const pages = await newPdfDoc.copyPages(pdfDoc, newOrder);
+  for (const page of pages) {
+    newPdfDoc.addPage(page);
+  }
+
+  // Reorder metadata
+  const newPageNames = [...file.pageNames];
+  const newOriginalPageNumbers = [...file.originalPageNumbers];
+  const newThumbnails = [...file.thumbnails];
+
+  const [removedName] = newPageNames.splice(fromIndex, 1);
+  const [removedOrig] = newOriginalPageNumbers.splice(fromIndex, 1);
+  const [removedThumb] = newThumbnails.splice(fromIndex, 1);
+
+  const adjustedTo = fromIndex < toIndex ? toIndex - 1 : toIndex;
+  newPageNames.splice(adjustedTo, 0, removedName);
+  newOriginalPageNumbers.splice(adjustedTo, 0, removedOrig);
+  newThumbnails.splice(adjustedTo, 0, removedThumb);
+
+  const bytes = await newPdfDoc.save();
+  const newFile = new File([bytes as unknown as BlobPart], file.file.name, { type: "application/pdf" });
+
+  return {
+    file: newFile,
+    pageNames: newPageNames,
+    originalPageNumbers: newOriginalPageNumbers,
+    thumbnails: newThumbnails,
+  };
+}
