@@ -16,6 +16,7 @@ interface PdfStore {
   reorderFiles: (files: PDFFile[]) => void;
   reorderPages: (fileId: string, fromIndex: number, toIndex: number) => void;
   deletePage: (fileId: string, pageIndex: number) => void;
+  deletePages: (fileId: string, pageIndices: number[]) => void;
   movePage: (
     sourceId: string,
     sourcePageIndex: number,
@@ -261,6 +262,49 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       }));
     } catch (err) {
       console.error("Delete page failed:", err);
+      set((state) => ({
+        files: state.files.map((f) =>
+          f.id === fileId ? { ...f, isMerging: false } : f,
+        ),
+      }));
+    }
+  },
+
+  deletePages: async (fileId: string, pageIndices: number[]) => {
+    const { files } = get();
+    const pdfFile = files.find((f) => f.id === fileId);
+    if (!pdfFile || pageIndices.length === 0) return;
+
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id === fileId ? { ...f, isMerging: true } : f,
+      ),
+    }));
+
+    try {
+      const sortedIndices = [...pageIndices].sort((a, b) => b - a);
+      let currentFile = pdfFile.file;
+      let currentThumbnails = pdfFile.thumbnails;
+      let currentPageNames = pdfFile.pageNames;
+      let currentOriginalPageNumbers = pdfFile.originalPageNumbers;
+
+      for (const idx of sortedIndices) {
+        const result = await deletePdfPage({ ...pdfFile, file: currentFile, thumbnails: currentThumbnails, pageNames: currentPageNames, originalPageNumbers: currentOriginalPageNumbers }, idx);
+        currentFile = result.file;
+        currentThumbnails = result.thumbnails;
+        currentPageNames = result.pageNames;
+        currentOriginalPageNumbers = result.originalPageNumbers;
+      }
+
+      set((state) => ({
+        files: state.files.map((f) =>
+          f.id === fileId
+            ? { ...f, file: currentFile, thumbnails: currentThumbnails, pageNames: currentPageNames, originalPageNumbers: currentOriginalPageNumbers, pageCount: currentPageNames.length, isMerging: false }
+            : f,
+        ),
+      }));
+    } catch (err) {
+      console.error("Delete pages failed:", err);
       set((state) => ({
         files: state.files.map((f) =>
           f.id === fileId ? { ...f, isMerging: false } : f,

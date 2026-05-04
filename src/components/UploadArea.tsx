@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { usePdfStore } from "../store/usePdfStore";
 import type { PDFFile } from "../types/pdf";
 import type { MergeTarget, DragMode } from "../utils/dnd";
@@ -24,6 +24,7 @@ export default function UploadArea() {
   const [expandedFileIds, setExpandedFileIds] = useState<Set<string>>(new Set());
   const [pageDraggingId, setPageDraggingId] = useState<string | null>(null);
   const [pageOverIndex, setPageOverIndex] = useState<{ fileId: string; index: number } | null>(null);
+  const [rangeInputs, setRangeInputs] = useState<Record<string, string>>({});
 
   const dragState = useRef<{
     id: string | null;
@@ -42,6 +43,7 @@ export default function UploadArea() {
   const movePage = usePdfStore((s) => s.movePage);
   const mergeFiles = usePdfStore((s) => s.mergeFiles);
   const deletePage = usePdfStore((s) => s.deletePage);
+  const deletePages = usePdfStore((s) => s.deletePages);
 
   function handleDeletePage(fileId: string, pageIndex: number) {
     const pdfFile = files.find((f) => f.id === fileId);
@@ -51,6 +53,61 @@ export default function UploadArea() {
       deletePage(fileId, pageIndex);
     }
   }
+
+  function handleRangeChange(fileId: string, value: string) {
+    setRangeInputs(prev => ({ ...prev, [fileId]: value }));
+  }
+
+  function handleExtract(fileId: string) {
+    const pdfFile = files.find((f) => f.id === fileId);
+    if (!pdfFile) return;
+    const input = rangeInputs[fileId];
+    if (!input) return;
+
+    const pagesToKeep = new Set<number>();
+    const parts = input.split(",");
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      const rangeMatch = trimmed.match(/^(\d+)-(\d+)$/);
+      if (rangeMatch) {
+        const start = parseInt(rangeMatch[1]);
+        const end = parseInt(rangeMatch[2]);
+        for (let i = start; i <= end; i++) {
+          if (i >= 1 && i <= pdfFile.pageCount) pagesToKeep.add(i);
+        }
+      } else {
+        const num = parseInt(trimmed);
+        if (!isNaN(num) && num >= 1 && num <= pdfFile.pageCount) pagesToKeep.add(num);
+      }
+    }
+
+    const indicesToDelete: number[] = [];
+    for (let i = 0; i < pdfFile.pageCount; i++) {
+      if (!pagesToKeep.has(i + 1)) {
+        indicesToDelete.push(i);
+      }
+    }
+
+    if (indicesToDelete.length > 0) {
+      deletePages(fileId, indicesToDelete);
+    }
+  }
+
+  useEffect(() => {
+    setRangeInputs(prev => {
+      const next = { ...prev };
+      let changed = false;
+      for (const file of files) {
+        const expected = `1-${file.pageCount}`;
+        if (next[file.id] !== expected) {
+          next[file.id] = expected;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [files]);
 
   function handleClick() {
     fileInputRef.current?.click();
@@ -67,6 +124,12 @@ export default function UploadArea() {
 
     const expandBtn = (e.target as HTMLElement).closest("[data-expand-btn]");
     if (expandBtn) return;
+
+    const extractBtn = (e.target as HTMLElement).closest("[data-extract-btn]");
+    if (extractBtn) return;
+
+    const rangeInput = (e.target as HTMLElement).closest("input[type=text]");
+    if (rangeInput) return;
 
     const target = e.currentTarget as HTMLElement;
     target.setPointerCapture(e.pointerId);
@@ -355,6 +418,26 @@ export default function UploadArea() {
                   }`}
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <div className="flex items-center gap-1 justify-center">
+                    <input
+                      type="text"
+                      className="w-24 text-xs py-0.5 px-1.5 border border-gray-300 rounded focus:outline-none focus:border-blue-400"
+                      value={rangeInputs[file.id] ?? ""}
+                      onChange={(e) => handleRangeChange(file.id, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <button
+                      data-extract-btn
+                      className="shrink-0 px-2 py-0.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs rounded cursor-pointer transition-colors"
+                      disabled={!rangeInputs[file.id] || rangeInputs[file.id] === `1-${file.pageCount}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExtract(file.id);
+                      }}
+                    >
+                      截取
+                    </button>
+                  </div>
                   <button
                     data-delete-btn
                     className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-md cursor-pointer z-10"
