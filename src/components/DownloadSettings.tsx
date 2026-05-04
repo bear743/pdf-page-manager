@@ -9,6 +9,7 @@ export default function DownloadSettings() {
   const splitByFixedPages = usePdfStore((s) => s.splitByFixedPages);
   const mergeAllFiles = usePdfStore((s) => s.mergeAllFiles);
   const downloadAllFiles = usePdfStore((s) => s.downloadAllFiles);
+  const isDownloading = usePdfStore((s) => s.isDownloading);
 
   return (
     <div className="h-[10%] flex flex-col">
@@ -56,9 +57,10 @@ export default function DownloadSettings() {
       <div className="flex-1 flex items-center justify-center">
         <button
           onClick={() => downloadAllFiles()}
-          className="bg-green-600 text-white rounded-lg px-8 py-2 font-medium hover:bg-green-700 transition-colors cursor-pointer"
+          disabled={isDownloading}
+          className="bg-green-600 text-white rounded-lg px-8 py-2 font-medium hover:bg-green-700 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          下载
+          {isDownloading ? "下载中..." : "下载"}
         </button>
       </div>
     </div>

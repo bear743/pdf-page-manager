@@ -13,6 +13,7 @@ interface PdfStore {
 
   setCustomRange: (value: string) => void;
   setFixedSplitSize: (value: number) => void;
+  isDownloading: boolean;
 
   addFiles: (fileList: FileList | null) => Promise<void>;
   removeFile: (id: string) => void;
@@ -163,6 +164,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
   customRange: "",
   fixedSplitSize: 1,
   generatingThumbnails: new Set(),
+  isDownloading: false,
 
   setCustomRange: (customRange) => set({ customRange }),
   setFixedSplitSize: (fixedSplitSize) => set({ fixedSplitSize }),
@@ -570,28 +572,33 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       return;
     }
 
-    for (let i = 0; i < loadedFiles.length; i++) {
-      const pdfFile = loadedFiles[i];
-      const ext = pdfFile.file.name.split(".").pop() || "pdf";
-      const defaultName = `${i + 1}.${ext}`;
+    set({ isDownloading: true });
+    try {
+      for (let i = 0; i < loadedFiles.length; i++) {
+        const pdfFile = loadedFiles[i];
+        const ext = pdfFile.file.name.split(".").pop() || "pdf";
+        const defaultName = `${i + 1}.${ext}`;
 
-      try {
-        const filePath = await save({
-          defaultPath: defaultName,
-          filters: [{ name: "PDF", extensions: ["pdf"] }],
-        });
+        try {
+          const filePath = await save({
+            defaultPath: defaultName,
+            filters: [{ name: "PDF", extensions: ["pdf"] }],
+          });
 
-        if (filePath) {
-          console.log("Saving to path:", filePath);
-          const arrayBuffer = await pdfFile.file.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          await writeFile(filePath, uint8Array);
-          console.log("File saved successfully");
+          if (filePath) {
+            console.log("Saving to path:", filePath);
+            const arrayBuffer = await pdfFile.file.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            await writeFile(filePath, uint8Array);
+            console.log("File saved successfully");
+          }
+        } catch (err) {
+          console.error("Save error:", err);
+          alert(`保存失败: ${err instanceof Error ? err.message : String(err)}`);
         }
-      } catch (err) {
-        console.error("Save error:", err);
-        alert(`保存失败: ${err instanceof Error ? err.message : String(err)}`);
       }
+    } finally {
+      set({ isDownloading: false });
     }
   },
 
