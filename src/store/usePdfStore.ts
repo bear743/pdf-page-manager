@@ -217,7 +217,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
 
     set((state) => ({
       files: state.files.map((f) =>
-        f.id === fileId ? { ...f, isMerging: true } : f,
+        f.id === fileId ? { ...f, isReordering: true } : f,
       ),
     }));
 
@@ -226,7 +226,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       set((state) => ({
         files: state.files.map((f) =>
           f.id === fileId
-            ? { ...f, file: result.file, thumbnails: result.thumbnails, pageNames: result.pageNames, originalPageNumbers: result.originalPageNumbers, isMerging: false }
+            ? { ...f, file: result.file, thumbnails: result.thumbnails, pageNames: result.pageNames, originalPageNumbers: result.originalPageNumbers, isReordering: false }
             : f,
         ),
       }));
@@ -234,7 +234,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       console.error("Reorder pages failed:", err);
       set((state) => ({
         files: state.files.map((f) =>
-          f.id === fileId ? { ...f, isMerging: false } : f,
+          f.id === fileId ? { ...f, isReordering: false } : f,
         ),
       }));
     }
@@ -247,7 +247,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
 
     set((state) => ({
       files: state.files.map((f) =>
-        f.id === fileId ? { ...f, isMerging: true } : f,
+        f.id === fileId ? { ...f, isDeleting: true } : f,
       ),
     }));
 
@@ -256,7 +256,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       set((state) => ({
         files: state.files.map((f) =>
           f.id === fileId
-            ? { ...f, file: result.file, thumbnails: result.thumbnails, pageNames: result.pageNames, originalPageNumbers: result.originalPageNumbers, pageCount: result.pageNames.length, isMerging: false }
+            ? { ...f, file: result.file, thumbnails: result.thumbnails, pageNames: result.pageNames, originalPageNumbers: result.originalPageNumbers, pageCount: result.pageNames.length, isDeleting: false }
             : f,
         ),
       }));
@@ -264,7 +264,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       console.error("Delete page failed:", err);
       set((state) => ({
         files: state.files.map((f) =>
-          f.id === fileId ? { ...f, isMerging: false } : f,
+          f.id === fileId ? { ...f, isDeleting: false } : f,
         ),
       }));
     }
@@ -277,7 +277,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
 
     set((state) => ({
       files: state.files.map((f) =>
-        f.id === fileId ? { ...f, isMerging: true } : f,
+        f.id === fileId ? { ...f, isDeleting: true } : f,
       ),
     }));
 
@@ -299,7 +299,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       set((state) => ({
         files: state.files.map((f) =>
           f.id === fileId
-            ? { ...f, file: currentFile, thumbnails: currentThumbnails, pageNames: currentPageNames, originalPageNumbers: currentOriginalPageNumbers, pageCount: currentPageNames.length, isMerging: false }
+            ? { ...f, file: currentFile, thumbnails: currentThumbnails, pageNames: currentPageNames, originalPageNumbers: currentOriginalPageNumbers, pageCount: currentPageNames.length, isDeleting: false }
             : f,
         ),
       }));
@@ -307,7 +307,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       console.error("Delete pages failed:", err);
       set((state) => ({
         files: state.files.map((f) =>
-          f.id === fileId ? { ...f, isMerging: false } : f,
+          f.id === fileId ? { ...f, isDeleting: false } : f,
         ),
       }));
     }
@@ -507,7 +507,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
     if (unchanged && ranges.length === loadedFiles.length) return;
 
     set((s) => ({
-      files: s.files.map((f) => ({ ...f, isLoading: true })),
+      files: s.files.map((f) => ({ ...f, isSplitting: true })),
     }));
 
     try {
@@ -532,7 +532,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       console.error("Custom range split failed:", err);
       alert("自定义范围拆分失败，请检查文件是否有效");
       set((s) => ({
-        files: s.files.map((f) => ({ ...f, isLoading: false })),
+        files: s.files.map((f) => ({ ...f, isSplitting: false })),
       }));
     }
   },
@@ -570,7 +570,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
     }
 
     set((s) => ({
-      files: s.files.map((f) => ({ ...f, isLoading: true })),
+      files: s.files.map((f) => ({ ...f, isSplitting: true })),
     }));
 
     try {
@@ -643,7 +643,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       console.error("Fixed page split failed:", err);
       alert("固定页数拆分失败，请检查文件是否有效");
       set((s) => ({
-        files: s.files.map((f) => ({ ...f, isLoading: false })),
+        files: s.files.map((f) => ({ ...f, isSplitting: false })),
       }));
     }
   },

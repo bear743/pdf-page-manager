@@ -462,8 +462,11 @@ export default function UploadArea() {
                     index === files.length - 1 && (
                       <div className="absolute -right-2 top-2 bottom-2 w-1 bg-blue-400 rounded pointer-events-none" />
                     )}
-                  {file.isLoading || file.isMerging ? (
-                    <LoadingPlaceholder file={file} isMerging={file.isMerging} />
+                  {file.isLoading || file.isMerging || file.isSplitting || file.isDeleting || file.isReordering ? (
+                    <LoadingPlaceholder
+                      file={file}
+                      label={file.isMerging ? "合并中..." : file.isSplitting ? "拆分中..." : file.isDeleting ? "删除中..." : file.isReordering ? "排序中..." : "加载中..."}
+                    />
                   ) : (
                     <div className={`flex flex-col items-center rounded-lg border-2 border-transparent transition-colors ${
                       expandedFileIds.has(file.id)
@@ -618,7 +621,7 @@ export default function UploadArea() {
   );
 }
 
-function LoadingPlaceholder({ file, isMerging }: { file: PDFFile; isMerging?: boolean }) {
+function LoadingPlaceholder({ file, label }: { file: PDFFile; label?: string }) {
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="w-28 h-36 bg-white rounded-lg shadow-sm border border-gray-200 flex items-center justify-center">
@@ -649,7 +652,7 @@ function LoadingPlaceholder({ file, isMerging }: { file: PDFFile; isMerging?: bo
       >
         {file.pageNames[0]}
       </span>
-      <span className="text-xs text-gray-500">{isMerging ? "合并中..." : "加载中..."}</span>
+      <span className="text-xs text-gray-500">{label || "加载中..."}</span>
     </div>
   );
 }

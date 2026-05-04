@@ -7,4 +7,7 @@ export type PDFFile = {
   originalPageNumbers: number[];
   isLoading: boolean;
   isMerging?: boolean;
+  isSplitting?: boolean;
+  isDeleting?: boolean;
+  isReordering?: boolean;
 };
