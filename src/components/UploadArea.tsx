@@ -41,6 +41,16 @@ export default function UploadArea() {
   const reorderPages = usePdfStore((s) => s.reorderPages);
   const movePage = usePdfStore((s) => s.movePage);
   const mergeFiles = usePdfStore((s) => s.mergeFiles);
+  const deletePage = usePdfStore((s) => s.deletePage);
+
+  function handleDeletePage(fileId: string, pageIndex: number) {
+    const pdfFile = files.find((f) => f.id === fileId);
+    if (pdfFile && pdfFile.pageCount <= 1) {
+      removeFile(fileId);
+    } else {
+      deletePage(fileId, pageIndex);
+    }
+  }
 
   function handleClick() {
     fileInputRef.current?.click();
@@ -352,7 +362,7 @@ export default function UploadArea() {
                       e.stopPropagation();
                       removeFile(file.id);
                     }}
-                    title="移除"
+                    title="移除该PDF"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -393,6 +403,7 @@ export default function UploadArea() {
                           isPageDragging={!!pageDraggingId}
                           pageOverIndex={pageOverIndex}
                           isPageMoveTarget={!!pageDraggingId}
+                          onDelete={handleDeletePage}
                         />
 
                         {file.pageCount === 2 && (
@@ -411,6 +422,7 @@ export default function UploadArea() {
                             isPageDragging={!!pageDraggingId}
                             pageOverIndex={pageOverIndex}
                             isPageMoveTarget={!!pageDraggingId}
+                            onDelete={handleDeletePage}
                           />
                         )}
 
@@ -435,6 +447,7 @@ export default function UploadArea() {
                                     isPageDragging={!!pageDraggingId}
                                     pageOverIndex={pageOverIndex}
                                     isPageMoveTarget={!!pageDraggingId}
+                                    onDelete={handleDeletePage}
                                   />
                                 ))}
                                 <ThumbnailView
@@ -452,6 +465,7 @@ export default function UploadArea() {
                                   isPageDragging={!!pageDraggingId}
                                   pageOverIndex={pageOverIndex}
                                   isPageMoveTarget={!!pageDraggingId}
+                                  onDelete={handleDeletePage}
                                 />
                               </>
                             ) : (
@@ -482,6 +496,7 @@ export default function UploadArea() {
                                   isPageDragging={!!pageDraggingId}
                                   pageOverIndex={pageOverIndex}
                                   isPageMoveTarget={!!pageDraggingId}
+                                  onDelete={handleDeletePage}
                                 />
                               </>
                             )}

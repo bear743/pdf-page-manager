@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { PDFDocument } from "pdf-lib";
 import type { PDFFile } from "../types/pdf";
-import { generateThumbnails, mergeTwoPDFs, movePageToTarget, reorderPdfPages } from "../utils/pdf";
+import { generateThumbnails, mergeTwoPDFs, movePageToTarget, reorderPdfPages, deletePdfPage } from "../utils/pdf";
 
 interface PdfStore {
   files: PDFFile[];
@@ -15,6 +15,7 @@ interface PdfStore {
   removeFile: (id: string) => void;
   reorderFiles: (files: PDFFile[]) => void;
   reorderPages: (fileId: string, fromIndex: number, toIndex: number) => void;
+  deletePage: (fileId: string, pageIndex: number) => void;
   movePage: (
     sourceId: string,
     sourcePageIndex: number,
@@ -230,6 +231,36 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       }));
     } catch (err) {
       console.error("Reorder pages failed:", err);
+      set((state) => ({
+        files: state.files.map((f) =>
+          f.id === fileId ? { ...f, isMerging: false } : f,
+        ),
+      }));
+    }
+  },
+
+  deletePage: async (fileId: string, pageIndex: number) => {
+    const { files } = get();
+    const pdfFile = files.find((f) => f.id === fileId);
+    if (!pdfFile) return;
+
+    set((state) => ({
+      files: state.files.map((f) =>
+        f.id === fileId ? { ...f, isMerging: true } : f,
+      ),
+    }));
+
+    try {
+      const result = await deletePdfPage(pdfFile, pageIndex);
+      set((state) => ({
+        files: state.files.map((f) =>
+          f.id === fileId
+            ? { ...f, file: result.file, thumbnails: result.thumbnails, pageNames: result.pageNames, originalPageNumbers: result.originalPageNumbers, pageCount: result.pageNames.length, isMerging: false }
+            : f,
+        ),
+      }));
+    } catch (err) {
+      console.error("Delete page failed:", err);
       set((state) => ({
         files: state.files.map((f) =>
           f.id === fileId ? { ...f, isMerging: false } : f,
