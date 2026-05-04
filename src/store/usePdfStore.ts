@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { PDFDocument } from "pdf-lib";
 import type { PDFFile } from "../types/pdf";
-import { generateThumbnails, mergeTwoPDFs, movePageToTarget, reorderPdfPages, deletePdfPage } from "../utils/pdf";
+import { generateThumbnails, mergeTwoPDFs, movePageToTarget, reorderPdfPages, deletePdfPage, deletePdfPages } from "../utils/pdf";
 
 interface PdfStore {
   files: PDFFile[];
@@ -282,24 +282,11 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
     }));
 
     try {
-      const sortedIndices = [...pageIndices].sort((a, b) => b - a);
-      let currentFile = pdfFile.file;
-      let currentThumbnails = pdfFile.thumbnails;
-      let currentPageNames = pdfFile.pageNames;
-      let currentOriginalPageNumbers = pdfFile.originalPageNumbers;
-
-      for (const idx of sortedIndices) {
-        const result = await deletePdfPage({ ...pdfFile, file: currentFile, thumbnails: currentThumbnails, pageNames: currentPageNames, originalPageNumbers: currentOriginalPageNumbers }, idx);
-        currentFile = result.file;
-        currentThumbnails = result.thumbnails;
-        currentPageNames = result.pageNames;
-        currentOriginalPageNumbers = result.originalPageNumbers;
-      }
-
+      const result = await deletePdfPages(pdfFile, pageIndices);
       set((state) => ({
         files: state.files.map((f) =>
           f.id === fileId
-            ? { ...f, file: currentFile, thumbnails: currentThumbnails, pageNames: currentPageNames, originalPageNumbers: currentOriginalPageNumbers, pageCount: currentPageNames.length, isDeleting: false }
+            ? { ...f, file: result.file, thumbnails: result.thumbnails, pageNames: result.pageNames, originalPageNumbers: result.originalPageNumbers, pageCount: result.pageNames.length, isDeleting: false }
             : f,
         ),
       }));

@@ -298,3 +298,32 @@ export async function deletePdfPage(
     thumbnails: newThumbnails,
   };
 }
+
+export async function deletePdfPages(
+  file: PDFFile,
+  pageIndices: number[],
+): Promise<{ file: File; pageNames: string[]; originalPageNumbers: number[]; thumbnails: (string | null)[] }> {
+  const pdfDoc = await PDFDocument.load(await file.file.arrayBuffer());
+
+  const deleteSet = new Set(pageIndices);
+  const indices = pdfDoc.getPageIndices().filter((_, i) => !deleteSet.has(i));
+  const newPdfDoc = await PDFDocument.create();
+  const pages = await newPdfDoc.copyPages(pdfDoc, indices);
+  for (const page of pages) {
+    newPdfDoc.addPage(page);
+  }
+
+  const newPageNames = file.pageNames.filter((_, i) => !deleteSet.has(i));
+  const newOriginalPageNumbers = file.originalPageNumbers.filter((_, i) => !deleteSet.has(i));
+  const newThumbnails = file.thumbnails.filter((_, i) => !deleteSet.has(i));
+
+  const bytes = await newPdfDoc.save();
+  const newFile = new File([bytes as unknown as BlobPart], file.file.name, { type: "application/pdf" });
+
+  return {
+    file: newFile,
+    pageNames: newPageNames,
+    originalPageNumbers: newOriginalPageNumbers,
+    thumbnails: newThumbnails,
+  };
+}
