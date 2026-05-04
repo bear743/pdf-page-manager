@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { PDFDocument } from "pdf-lib";
+import { save } from "@tauri-apps/plugin-dialog";
+import { writeFile } from "@tauri-apps/plugin-fs";
 import type { PDFFile } from "../types/pdf";
 import { generateThumbnails, generatePageThumbnail, mergeTwoPDFs, movePageToTarget, reorderPdfPages, deletePdfPage, deletePdfPages } from "../utils/pdf";
 
@@ -36,7 +38,7 @@ interface PdfStore {
   mergeAllFiles: () => Promise<void>;
   splitByCustomRange: () => Promise<void>;
   splitByFixedPages: () => Promise<void>;
-  downloadAllFiles: () => void;
+  downloadAllFiles: () => Promise<void>;
 }
 
 function computeCustomRange(files: PDFFile[]): string {
@@ -560,7 +562,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
     }
   },
 
-  downloadAllFiles: () => {
+  downloadAllFiles: async () => {
     const { files } = get();
     const loadedFiles = files.filter((f) => f.pageCount > 0 && !f.isLoading && !f.isMerging);
     if (loadedFiles.length === 0) {
@@ -570,15 +572,26 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
 
     for (let i = 0; i < loadedFiles.length; i++) {
       const pdfFile = loadedFiles[i];
-      const url = URL.createObjectURL(pdfFile.file);
-      const a = document.createElement("a");
-      a.href = url;
       const ext = pdfFile.file.name.split(".").pop() || "pdf";
-      a.download = `${i + 1}.${ext}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const defaultName = `${i + 1}.${ext}`;
+
+      try {
+        const filePath = await save({
+          defaultPath: defaultName,
+          filters: [{ name: "PDF", extensions: ["pdf"] }],
+        });
+
+        if (filePath) {
+          console.log("Saving to path:", filePath);
+          const arrayBuffer = await pdfFile.file.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          await writeFile(filePath, uint8Array);
+          console.log("File saved successfully");
+        }
+      } catch (err) {
+        console.error("Save error:", err);
+        alert(`保存失败: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   },
 

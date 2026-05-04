@@ -55,7 +55,7 @@ export default function DownloadSettings() {
 
       <div className="flex-1 flex items-center justify-center">
         <button
-          onClick={downloadAllFiles}
+          onClick={() => downloadAllFiles()}
           className="bg-green-600 text-white rounded-lg px-8 py-2 font-medium hover:bg-green-700 transition-colors cursor-pointer"
         >
           下载
