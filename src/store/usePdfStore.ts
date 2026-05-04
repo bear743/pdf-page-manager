@@ -449,7 +449,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
     if (loadedFiles.length === 1) return;
 
     set((s) => ({
-      files: s.files.map((f) => ({ ...f, isLoading: true })),
+      files: s.files.map((f) => ({ ...f, isMerging: true })),
     }));
 
     try {
@@ -494,7 +494,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
       console.error("Merge all failed:", err);
       alert("合并全部失败，请检查文件是否有效");
       set((s) => ({
-        files: s.files.map((f) => ({ ...f, isLoading: false })),
+        files: s.files.map((f) => ({ ...f, isMerging: false })),
       }));
     }
   },
