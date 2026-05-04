@@ -65,6 +65,24 @@ export async function generateThumbnails(
   return { pageCount, thumbnails };
 }
 
+export async function generatePageThumbnail(
+  file: File,
+  pageIndex: number,
+): Promise<string> {
+  const pdf = await getDocumentFromFile(file);
+  const page = await pdf.getPage(pageIndex + 1);
+  const scale = 0.3;
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+  const dataUrl = canvas.toDataURL("image/png");
+  pdf.destroy();
+  return dataUrl;
+}
+
 export async function mergeTwoPDFs(
   source: PDFFile,
   target: PDFFile,

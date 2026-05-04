@@ -16,6 +16,8 @@ interface ThumbnailViewProps {
   pageOverIndex?: { fileId: string; index: number } | null;
   isPageMoveTarget?: boolean;
   onDelete?: (fileId: string, pageIndex: number) => void;
+  onGenerateThumbnail?: (fileId: string, pageIndex: number) => void;
+  isGenerating?: boolean;
 }
 
 export default function ThumbnailView({
@@ -34,6 +36,8 @@ export default function ThumbnailView({
   pageOverIndex,
   isPageMoveTarget,
   onDelete,
+  onGenerateThumbnail,
+  isGenerating,
 }: ThumbnailViewProps) {
   const isMergeSource = dragMode === "merge" && draggingId === fileId;
   const isTarget =
@@ -72,13 +76,37 @@ export default function ThumbnailView({
           ${isPageOverRight ? "border-r-4 border-r-green-500" : ""}
         `}
       >
-        {src && (
+        {src ? (
           <img
             src={src}
             className="max-w-full max-h-full object-contain"
             alt=""
             draggable={false}
           />
+        ) : onGenerateThumbnail ? (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onGenerateThumbnail(fileId, pageIndex);
+            }}
+            className="absolute inset-0 w-full h-full flex items-center justify-center cursor-pointer"
+            title="加载缩略图"
+          >
+            {isGenerating ? (
+              <span className="text-xs text-gray-400">加载中...</span>
+            ) : (
+              <span className="w-6 h-6 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+              </span>
+            )}
+          </button>
+        ) : (
+          <span className="text-xs text-gray-400">无缩略图</span>
         )}
         {onDelete && (
           <button

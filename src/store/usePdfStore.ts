@@ -1,12 +1,13 @@
 import { create } from "zustand";
 import { PDFDocument } from "pdf-lib";
 import type { PDFFile } from "../types/pdf";
-import { generateThumbnails, mergeTwoPDFs, movePageToTarget, reorderPdfPages, deletePdfPage, deletePdfPages } from "../utils/pdf";
+import { generateThumbnails, generatePageThumbnail, mergeTwoPDFs, movePageToTarget, reorderPdfPages, deletePdfPage, deletePdfPages } from "../utils/pdf";
 
 interface PdfStore {
   files: PDFFile[];
   customRange: string;
   fixedSplitSize: number;
+  generatingThumbnails: Set<string>;
 
   setCustomRange: (value: string) => void;
   setFixedSplitSize: (value: number) => void;
@@ -17,6 +18,8 @@ interface PdfStore {
   reorderPages: (fileId: string, fromIndex: number, toIndex: number) => void;
   deletePage: (fileId: string, pageIndex: number) => void;
   deletePages: (fileId: string, pageIndices: number[]) => void;
+  updateThumbnail: (fileId: string, pageIndex: number) => Promise<void>;
+  isGeneratingThumbnail: (fileId: string, pageIndex: number) => boolean;
   movePage: (
     sourceId: string,
     sourcePageIndex: number,
@@ -157,6 +160,7 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
   files: [],
   customRange: "",
   fixedSplitSize: 1,
+  generatingThumbnails: new Set(),
 
   setCustomRange: (customRange) => set({ customRange }),
   setFixedSplitSize: (fixedSplitSize) => set({ fixedSplitSize }),
@@ -298,6 +302,38 @@ export const usePdfStore = create<PdfStore>((set, get) => ({
         ),
       }));
     }
+  },
+
+  updateThumbnail: async (fileId: string, pageIndex: number) => {
+    const { files } = get();
+    const pdfFile = files.find((f) => f.id === fileId);
+    if (!pdfFile || pdfFile.thumbnails[pageIndex]) return;
+
+    const key = `${fileId}-${pageIndex}`;
+    set((state) => ({
+      generatingThumbnails: new Set([...state.generatingThumbnails, key]),
+    }));
+
+    try {
+      const thumbnail = await generatePageThumbnail(pdfFile.file, pageIndex);
+      set((state) => ({
+        files: state.files.map((f) =>
+          f.id === fileId
+            ? { ...f, thumbnails: f.thumbnails.map((t, i) => (i === pageIndex ? thumbnail : t)) }
+            : f,
+        ),
+        generatingThumbnails: new Set([...state.generatingThumbnails].filter((k) => k !== key)),
+      }));
+    } catch (err) {
+      console.error("Generate thumbnail failed:", err);
+      set((state) => ({
+        generatingThumbnails: new Set([...state.generatingThumbnails].filter((k) => k !== key)),
+      }));
+    }
+  },
+
+  isGeneratingThumbnail: (fileId: string, pageIndex: number) => {
+    return get().generatingThumbnails.has(`${fileId}-${pageIndex}`);
   },
 
   movePage: async (sourceId, sourcePageIndex, targetId, targetPageIndex, side) => {

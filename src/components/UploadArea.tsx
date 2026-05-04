@@ -44,6 +44,8 @@ export default function UploadArea() {
   const mergeFiles = usePdfStore((s) => s.mergeFiles);
   const deletePage = usePdfStore((s) => s.deletePage);
   const deletePages = usePdfStore((s) => s.deletePages);
+  const updateThumbnail = usePdfStore((s) => s.updateThumbnail);
+  const generatingThumbnails = usePdfStore((s) => s.generatingThumbnails);
 
   function handleDeletePage(fileId: string, pageIndex: number) {
     const pdfFile = files.find((f) => f.id === fileId);
@@ -490,6 +492,8 @@ export default function UploadArea() {
                           pageOverIndex={pageOverIndex}
                           isPageMoveTarget={!!pageDraggingId}
                           onDelete={handleDeletePage}
+                          onGenerateThumbnail={updateThumbnail}
+                          isGenerating={generatingThumbnails.has(`${file.id}-0`)}
                         />
 
                         {file.pageCount === 2 && (
@@ -509,6 +513,8 @@ export default function UploadArea() {
                             pageOverIndex={pageOverIndex}
                             isPageMoveTarget={!!pageDraggingId}
                             onDelete={handleDeletePage}
+                            onGenerateThumbnail={updateThumbnail}
+                            isGenerating={generatingThumbnails.has(`${file.id}-1`)}
                           />
                         )}
 
@@ -516,15 +522,15 @@ export default function UploadArea() {
                           <>
                             {expandedFileIds.has(file.id) ? (
                               <>
-                                {Array.from({ length: file.pageCount - 2 }, (_, i) => i + 1).map((pageIndex) => (
+                                {Array.from({ length: file.pageCount - 2 }, (_, i) => i + 1).map((idx) => (
                                   <ThumbnailView
-                                    key={pageIndex}
-                                    src={file.thumbnails[pageIndex]}
-                                    pageNum={pageIndex + 1}
+                                    key={idx}
+                                    src={file.thumbnails[idx]}
+                                    pageNum={idx + 1}
                                     fileId={file.id}
-                                    pageIndex={pageIndex}
-                                    pageName={file.pageNames[pageIndex]}
-                                    originalPageNum={file.originalPageNumbers[pageIndex]}
+                                    pageIndex={idx}
+                                    pageName={file.pageNames[idx]}
+                                    originalPageNum={file.originalPageNumbers[idx]}
                                     dragMode={dragMode}
                                     draggingId={draggingId}
                                     mergeTarget={mergeTarget}
@@ -534,6 +540,8 @@ export default function UploadArea() {
                                     pageOverIndex={pageOverIndex}
                                     isPageMoveTarget={!!pageDraggingId}
                                     onDelete={handleDeletePage}
+                                    onGenerateThumbnail={updateThumbnail}
+                                    isGenerating={generatingThumbnails.has(`${file.id}-${idx}`)}
                                   />
                                 ))}
                                 <ThumbnailView
@@ -552,6 +560,8 @@ export default function UploadArea() {
                                   pageOverIndex={pageOverIndex}
                                   isPageMoveTarget={!!pageDraggingId}
                                   onDelete={handleDeletePage}
+                                  onGenerateThumbnail={updateThumbnail}
+                                  isGenerating={generatingThumbnails.has(`${file.id}-${file.pageCount - 1}`)}
                                 />
                               </>
                             ) : (
@@ -583,6 +593,8 @@ export default function UploadArea() {
                                   pageOverIndex={pageOverIndex}
                                   isPageMoveTarget={!!pageDraggingId}
                                   onDelete={handleDeletePage}
+                                  onGenerateThumbnail={updateThumbnail}
+                                  isGenerating={generatingThumbnails.has(`${file.id}-${file.pageCount - 1}`)}
                                 />
                               </>
                             )}
