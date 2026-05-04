@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 120 120">
+  <defs>
+    <filter id="w605v82s" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#000" flood-opacity="0.15"/>
+    </filter>
+    <filter id="w605v82t" x="-20%" y="-10%" width="150%" height="150%">
+      <feDropShadow dx="1" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- 底层页面1 -->
+  <g filter="url(#w605v82s)" opacity="0.45">
+    <rect x="18" y="22" width="58" height="76" rx="5" fill="none" stroke="#fff" stroke-width="2"/>
+    <line x1="28" y1="38" x2="60" y2="38" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity="0.4"/>
+    <line x1="28" y1="48" x2="54" y2="48" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity="0.4"/>
+    <line x1="28" y1="58" x2="58" y2="58" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity="0.4"/>
+  </g>
+
+  <!-- 底层页面2 -->
+  <g filter="url(#w605v82s)" opacity="0.7">
+    <rect x="28" y="16" width="58" height="76" rx="5" fill="none" stroke="#fff" stroke-width="2.2"/>
+    <line x1="38" y1="32" x2="70" y2="32" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity="0.4"/>
+    <line x1="38" y1="42" x2="64" y2="42" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity="0.4"/>
+    <line x1="38" y1="52" x2="68" y2="52" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity="0.4"/>
+    <line x1="38" y1="62" x2="56" y2="62" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity="0.4"/>
+  </g>
+
+  <!-- 顶层拖动页面 -->
+  <g filter="url(#w605v82t)" transform="translate(6, -4) rotate(4, 57, 40)">
+    <rect x="38" y="10" width="58" height="76" rx="5" fill="none" stroke="#fff" stroke-width="2.5"/>
+    <line x1="48" y1="26" x2="80" y2="26" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity="0.5"/>
+    <line x1="48" y1="36" x2="74" y2="36" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity="0.5"/>
+    <line x1="48" y1="46" x2="78" y2="46" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity="0.5"/>
+    <line x1="48" y1="56" x2="66" y2="56" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity="0.5"/>
+
+    <!-- 拖拽手柄 -->
+    <g transform="translate(82, 16)">
+      <rect x="0" y="0" width="14" height="14" rx="3.5" fill="#fff"/>
+      <circle cx="4.5" cy="4.5" r="1.2" fill="#e63946"/>
+      <circle cx="9.5" cy="4.5" r="1.2" fill="#e63946"/>
+      <circle cx="4.5" cy="9.5" r="1.2" fill="#e63946"/>
+      <circle cx="9.5" cy="9.5" r="1.2" fill="#e63946"/>
+      <circle cx="7" cy="7" r="1.2" fill="#e63946"/>
+    </g>
+  </g>
+</svg>

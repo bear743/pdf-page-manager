@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "pdf-page-manager",
+        "title": "PDF Page Manager",
         "width": 800,
         "height": 600
       }
